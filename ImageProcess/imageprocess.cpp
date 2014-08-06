@@ -272,11 +272,6 @@ void ImageProcess::pseudocolorProcess(ImageType::Pointer imageData)
 	write8BitImage(unCharImageData,"temp8BitImage.tif");
 	//
 
-// 	itk::ImageFileWriter<UnChImageType>::Pointer writer=itk::ImageFileWriter<UnChImageType>::New();
-// 	writer->SetFileName("testt.tif");
-// 	writer->SetImageIO(tiffIO);
-// 	writer->SetInput(unCharImageData);
-// 	writer->Update();
 
 	//
 	RGBFilterType::Pointer rgbfilter = RGBFilterType::New();
