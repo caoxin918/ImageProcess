@@ -17,6 +17,9 @@ ImageProcess::ImageProcess(QWidget *parent, Qt::WFlags flags)
 	QObject::connect(ui.pushButtonSave,SIGNAL(clicked()),this,SLOT(on_pushButton_save_clicked()));
 	QObject::connect(ui.pushButtonClear,SIGNAL(clicked()),this,SLOT(on_pushButton_clear_clicked()));
 	QObject::connect(ui.pushButtonQuit,SIGNAL(clicked()),this,SLOT(on_pushButton_quit_clicked()));
+	QObject::connect(ui.spinBoxHighValue,SIGNAL(valueChanged(int)),this,SLOT(on_spinBoxValueChanged()));
+	QObject::connect(ui.spinBoxLowValue,SIGNAL(valueChanged(int)),this,SLOT(on_spinBoxValueChanged()));
+	
 	QRegExp regx("[0-9]+$");
 	QValidator *validator1 = new QRegExpValidator(regx,ui.SubstractLineEdit);
 	ui.SubstractLineEdit->setValidator(validator1);
@@ -49,6 +52,7 @@ void ImageProcess::initialAll()
 	//ui.qvtkWidget->GetRenderWindow()->AddRenderer(renderer);
 	//renderWindowInteractor=vtkRenderWindowInteractor::New();
 	//renderer->
+
 	ui.qvtkWidget->GetRenderWindow()->AddRenderer(renderer);
 	renderWindowInteractor=ui.qvtkWidget->GetRenderWindow()->GetInteractor();
 	renderWindowInteractor->Disable();
@@ -87,7 +91,7 @@ void ImageProcess::on_pushButton_photograph_clicked()
 		const char* temp2=temp1.c_str();
 		photographImage=NULL;;
 		photographImage=UnChImageType::New();
-		photographImage=rescaleImage(readImage(temp2));
+		photographImage=rescaleImage(readImage(temp2),0,255);
 		
 		////////////////////////////////////////
 // 		vtkTIFFReader* VTKreader=vtkTIFFReader::New();
@@ -178,6 +182,7 @@ void ImageProcess::on_pushButton_substract_clicked()
 		++It;
 	}
 	imageShow(tempImageData);
+//	writeImage(tempImageData,"tesss.tif");
 	substractFlag=true;
 
 	smoothFilterFlag=false;
@@ -196,7 +201,7 @@ void ImageProcess::on_pushButton_smooth_clicked()
 		fusionFlag=false;
 		return;
 	}
-	if(temp<1 || temp>10)
+	if(temp<1 || temp>20)
 	{
 		QMessageBox::information(NULL,"Warning","The input must be larger than 0 and smaller than 10.");
 		smoothFilterFlag=false;
@@ -217,8 +222,10 @@ void ImageProcess::on_pushButton_smooth_clicked()
 //	copyImageData(filter->GetOutput(),tempImageData2);
 	tempImageData2=filter->GetOutput();
 	smoothFilterFlag=true;
+	fusionFlag=false;
 //	imageShow(filter->GetOutput());
 	imageShow(tempImageData2);
+//	writeImage(tempImageData2,"tesss.tif");
 }
 void ImageProcess::on_pushButton_fusion_clicked()
 {
@@ -229,14 +236,15 @@ void ImageProcess::on_pushButton_fusion_clicked()
 		return;
 	}
 	pseudocolorProcess(tempImageData2);
+	fusionFlag=true;
 }
 
-UnChImageType::Pointer ImageProcess::rescaleImage(ImageType::Pointer imageData)//scale the value to 0-255
+UnChImageType::Pointer ImageProcess::rescaleImage(ImageType::Pointer imageData,PixelType minValue,PixelType maxValue)//scale the value to 0-255
 {
 	RescaleFilterType::Pointer rescaleFilter=RescaleFilterType::New();
 	rescaleFilter->SetInput(imageData);
-	rescaleFilter->SetOutputMinimum(0);
-	rescaleFilter->SetOutputMaximum(255);
+	rescaleFilter->SetOutputMinimum(minValue);
+	rescaleFilter->SetOutputMaximum(maxValue);
 	rescaleFilter->Update();
 	CastFilterType::Pointer castFilter=CastFilterType::New();
 	castFilter->SetInput(rescaleFilter->GetOutput());
@@ -246,32 +254,48 @@ UnChImageType::Pointer ImageProcess::rescaleImage(ImageType::Pointer imageData)/
 
 void ImageProcess::pseudocolorProcess(ImageType::Pointer imageData)
 {
-	ui.spinBoxHighValue->setValue(colorWindow);
-	ui.spinBoxLowValue->setValue(0);
-	colorbarHighValue=ui.spinBoxHighValue->value();
-	colorbarLowValue=ui.spinBoxLowValue->value();
-
+	PixelType maxValue;
+	PixelType minValue;
+	if(fusionFlag)
+	{
+		colorbarHighValue=ui.spinBoxHighValue->value();
+		colorbarLowValue=ui.spinBoxLowValue->value();
+	}
+	else
+	{
+		ui.spinBoxHighValue->setValue(colorWindow);//此处以最后读取的灰度图片为准，最大像素点的数值为colorwindow
+		ui.spinBoxLowValue->setValue(0);
+		colorbarHighValue=ui.spinBoxHighValue->value();
+		colorbarLowValue=ui.spinBoxLowValue->value();
+	}
 	tempImageData3=NULL;
 	tempImageData3=ImageType::New();
 	copyImageData(tempImageData2,tempImageData3);
-	IteratorType It(tempImageData3,tempImageData3->GetRequestedRegion());
-	PixelType temp=0;
-	while(!It.IsAtEnd())
-	{
-		temp=It.Get();
-		if(temp>colorbarHighValue)
-			temp=colorbarHighValue;
-		if(temp<colorbarLowValue)
-			temp=colorbarLowValue;
-		It.Set(temp);
-		++It;
-	}
+//	writeImage(tempImageData3,"tesss.tif");
+// 	IteratorType It(tempImageData3,tempImageData3->GetRequestedRegion());
+// 	PixelType temp=0;
+// 	while(!It.IsAtEnd())
+// 	{
+// 		temp=It.Get();
+// 		if(temp>colorbarHighValue)
+// 			temp=colorbarHighValue;
+// 		if(temp<colorbarLowValue)
+// 			temp=colorbarLowValue;
+// 		It.Set(temp);
+// 		++It;
+// 	}
+	
+//	unCharImageData=rescaleImage(tempImageData3,minValue,maxValue);
+	sliceInputLuminescneceImage(tempImageData3,colorbarHighValue,colorbarLowValue);//将荧光图片做成0-255范围的灰度图，保存为luminescnece8BitImage.tif
+//	write8BitImage(unCharImageData,"temp8BitImage.tif");
+	//
 	unCharImageData=NULL;
 	unCharImageData=UnChImageType::New();
-	unCharImageData=rescaleImage(tempImageData3);
-	write8BitImage(unCharImageData,"temp8BitImage.tif");
-	//
-
+	UnChReaderType::Pointer UnChReader=UnChReaderType::New();
+	UnChReader->SetFileName("luminescnece8BitImage.tif");
+	UnChReader->SetImageIO(tiffIO);
+	UnChReader->Update();
+	unCharImageData=UnChReader->GetOutput();
 
 	//
 	RGBFilterType::Pointer rgbfilter = RGBFilterType::New();
@@ -349,6 +373,7 @@ ImageType::Pointer ImageProcess::readImage(const char* filename)
 	reader->Update();
 	return reader->GetOutput();
 }
+
 void ImageProcess::writeImage(ImageType* outputImage, const char* filename)
 {
 	WriterType::Pointer writer=WriterType::New();
@@ -494,4 +519,54 @@ void ImageProcess::copyImageData(ImageType::Pointer inputData,ImageType::Pointer
 PixelType ImageProcess::minusPixel(PixelType pixelValue,PixelType subValue)
 {
 	return pixelValue>subValue ? (pixelValue-subValue):0;
+}
+void ImageProcess::on_spinBoxValueChanged()
+{
+	PixelType highSpinValue;
+	PixelType lowSpinValue;
+	highSpinValue=ui.spinBoxHighValue->value();
+	lowSpinValue=ui.spinBoxLowValue->value();
+	if(highSpinValue<=lowSpinValue)
+	{
+		QMessageBox::information(NULL,"Warning","highSpinValue should be larger than lowSpinValue, the difference should be 10 or more.");
+		ui.spinBoxHighValue->setValue(colorbarHighValue);
+		ui.spinBoxLowValue->setValue(colorbarLowValue);
+		
+	}
+	else
+	{
+		pseudocolorProcess(tempImageData2);
+	}
+
+}
+void ImageProcess::sliceInputLuminescneceImage(ImageType::Pointer inputImage,PixelType HValue,PixelType LValue)
+{
+	UnChImageType::Pointer sliced8BitImageData=UnChImageType::New();
+	CastFilterType::Pointer castFilter=CastFilterType::New();
+	castFilter->SetInput(inputImage);
+	castFilter->Update();
+	sliced8BitImageData=castFilter->GetOutput();
+//	writeImage(inputImage,"okok.tif");//
+	float spaceValue=(float)((float)HValue-LValue)/256;
+	ConstIteratorType ConstIt(inputImage,inputImage->GetRequestedRegion());
+	UnChIteratorType It(sliced8BitImageData,sliced8BitImageData->GetRequestedRegion());
+	UnChPixelType temp;
+	int temp2;
+	while (!It.IsAtEnd())
+	{
+		temp2=(int)((int)ConstIt.Get()/spaceValue);
+		if(temp2>=255)
+			temp2=255;
+		else
+			temp2=temp2+1;
+		if (ConstIt.Get()==0)
+		{
+			temp2=0;
+		}
+		temp=(UnChPixelType)temp2;
+		It.Set(temp);
+		++It;
+		++ConstIt;
+	}
+	write8BitImage(sliced8BitImageData,"luminescnece8BitImage.tif");
 }

@@ -54,6 +54,7 @@ typedef itk::ScalarToRGBColormapImageFilter< UnChImageType, RGBImageType> RGBFil
 typedef itk::ImageToVTKImageFilter<RGBImageType> RGBConnectorType;
 typedef itk::ImageFileWriter<RGBImageType> RGBWriterType;//输出8bit rgb图像
 typedef itk::ImageFileWriter<UnChImageType> UnChWriterType;//输出8bit图像
+typedef itk::ImageFileReader<UnChImageType> UnChReaderType;
 typedef itk::ImageRegionIterator<RGBImageType> RGBIteratortype;
 typedef itk::ImageRegionIterator<UnChImageType> UnChIteratorType;
 class ImageProcess : public QMainWindow
@@ -90,6 +91,7 @@ private slots:
 	void on_pushButton_save_clicked();
 	void on_pushButton_clear_clicked();
 	void on_pushButton_quit_clicked();
+	void on_spinBoxValueChanged();
 
 private:
 	ImageType::Pointer readImage(const char* filename);//read a tiff image
@@ -105,8 +107,12 @@ private:
 	void copyImageData(ImageType::Pointer inputData,ImageType::Pointer outputData);
 	PixelType minusPixel(PixelType pixelValue,PixelType subValue);
 	void pseudocolorProcess(ImageType::Pointer imageData);
-	UnChImageType::Pointer rescaleImage(ImageType::Pointer imageData);//rescale the image to the value between assigned values
+	UnChImageType::Pointer rescaleImage(ImageType::Pointer imageData,PixelType minValue,PixelType maxValue);//rescale the image to the value between assigned values
 	void fusionImage(RGBImageType::Pointer inputRGBImage,UnChImageType::Pointer inputPhotography, UnChImageType::Pointer inputLuminescence,RGBImageType::Pointer outputImage);
+
+	//sliceInputLuminescneceImage()   函数功能：将输入的16位荧光图，按照上下colorbar映射到0-255,然后存在磁盘上，命名luminescnece8BitImage.tif
+	void sliceInputLuminescneceImage(ImageType::Pointer inputImage,PixelType HValue,PixelType LValue);
+	//over
 
 private:
 	ImageType::Pointer luminescenceImage;
