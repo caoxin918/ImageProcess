@@ -27,7 +27,6 @@
 
 #include "vtkTIFFReader.h"
 
-
 typedef unsigned short PixelType;
 const unsigned int Dimension=2;
 typedef itk::Image<PixelType,Dimension> ImageType;
@@ -139,6 +138,11 @@ private:
 	vtkRenderWindowInteractor* renderWindowInteractor;
 	vtkImageFlip* imageFlip;
 
+
+private:
+//	float colorMapJetData[255][3];
 };
+
+
 
 #endif // IMAGEPROCESS_H
