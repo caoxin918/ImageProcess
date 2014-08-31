@@ -901,8 +901,8 @@ void ImageProcess::sliceInputLuminescneceImage(ImageType::Pointer inputImage,Pix
 		++tempIt;
 	}
 	int sliceMin,sliceMax;
-	sliceMax=(int)((maxImageValue-LValue)/(HValue-LValue)*255);
-	sliceMin=(int)((minImageValue-LValue)/(HValue-LValue)*255);
+	sliceMax=(int)(((float)maxImageValue-LValue)/((float)HValue-LValue)*255);
+	sliceMin=(int)(((float)minImageValue-LValue)/((float)HValue-LValue)*255);
 	if(sliceMin==0)
 		sliceMin=1;//方便进行接下来的矫正
 	if(sliceMax<2)
